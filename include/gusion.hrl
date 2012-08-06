@@ -4,18 +4,20 @@
 -define(TIMESTAMP_SIZE, 7).
 
 -record(gusion_config, {
-        name=""::string(),
-        names=[""]::list(string()),
-        buffer_size=0::integer(),
-        delay=0::integer(),
-        dir=""::string(),
-        tag_size=3::integer(),
-        max_size=4*1024*1024*1024::integer()
+        name::string(),
+        names::list(string()),
+        buffer_size::integer(),
+        delay::integer(),
+        dir::string(),
+        tag_size::integer(),
+        pos_size::integer(),
+        index_size::integer()
     }).
 
 -record(gusion_dev, {
         pid::pid(),
-        id::term()
+        id::term(),
+        files::list(string())
     }).
 
 -record(gusion_writer_server_state, {
@@ -28,6 +30,7 @@
         index_buffer::binary(),
         tag_size::integer(),
         pos_size::integer(),
+        index_size::integer(),
         data_pos::integer()
     }).
 

@@ -14,7 +14,8 @@ init([new, Config])->
         buffer_size=BufferSize,
         delay=Delay,
         tag_size=TagSize,
-        max_size=MaxSize}=Config,
+        pos_size=PosSize,
+        index_size=IndexSize}=Config,
     [DataFile, IndexFile, ConfigFile]=Names,
     {ok, #gusion_writer_server_state{
             data_file=DataFile,
@@ -23,10 +24,11 @@ init([new, Config])->
             delay=Delay,
             max_buffer_size=BufferSize,
             tag_size=TagSize,
-            pos_size=gusion_util:int_byte_len(MaxSize),
+            pos_size=PosSize,
             data_buffer= <<>>,
             index_buffer= <<>>,
-            data_pos=0
+            data_pos=0,
+            index_size=IndexSize
         }}.
 
 handle_call({write, Data}, _From, State=#gusion_writer_server_state{
@@ -66,18 +68,17 @@ handle_call({read, Index}, _From, State=#gusion_writer_server_state{
     data_file=DataFile,
     index_file=IndexFile,
     tag_size=TagSize,
-    pos_size=PosSize
+    pos_size=PosSize,
+    index_size=IndexSize
 })->
     try
-        IndexSize=?TIMESTAMP_SIZE+TagSize+PosSize*2,
-        IndexBin=get_index(IndexFile, IndexSize, Index),
-        TagBitsSize=TagSize*8,
-        PosBitsSize=PosSize*8,
-        <<_TimeStamp:(?TIMESTAMP_SIZE*8), _Tag:TagBitsSize,
-            DataPos:PosBitsSize, Bytes:PosBitsSize>> =IndexBin,
-        {reply, get_data(DataFile, DataPos, Bytes), State}
+        Reply=gusion_util:get_data(DataFile, IndexFile, TagSize, PosSize,
+            IndexSize, Index),
+        {reply, {ok, Reply}, State}
     catch
-        _:Reason->{reply, {error, Reason}, State}
+        _:Reason->
+            %io:format("~p~n", [erlang:get_stacktrace()]),
+            {reply, {error, Reason}, State}
     end;
 handle_call(_Msg, _From, State)->
     {reply, reply, State}.
@@ -93,30 +94,6 @@ code_change(_Vsn, State, _Extra)->
 
 terminate(_Reason, _State)->
     ok.
-
-get_data(DataFile, DataPos, Bytes)->
-    {ok, Fd}=file:open(DataFile, [raw, binary]),
-    Ret=file:pread(Fd, DataPos, Bytes),
-    file:close(Fd),
-    case Ret of
-        {ok, Bin}->
-            {ok, binary_to_term(Bin)};
-        {error, Reason}->
-            error(Reason)
-    end.
-
-get_index(IndexFile, Size, Index) when is_integer(Index) andalso Index>0 ->
-    FileSize=gusion_util:get_file_size(IndexFile),
-    Offset=(Index-1)*Size,
-    if
-        Offset>=FileSize->
-            error(index_out_of_bound);
-        true->
-            {ok, Fd}=file:open(IndexFile, [raw, binary]),
-            {ok, Bin}=file:pread(Fd, Offset, Size),
-            file:close(Fd),
-            Bin
-    end.
 
 write_to_file(DataBuf, IndexBuf, DataFile, IndexFile)->
     try
