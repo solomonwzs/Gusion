@@ -1,6 +1,7 @@
 -module(gusion).
 -include("gusion.hrl").
--export([new/1, open/2, close/1, write/2, read/2, dirty_read/2]).
+-export([new/1, open/2, close/1, write/2, read/2, dirty_read/2, delete/1,
+        read_by_time/3]).
 
 -spec new(list())->{ok, record()}|{error, term()}.
 new(Config)->
@@ -11,7 +12,7 @@ new(Config)->
             _->ok
         end,
         ok=create_data_file(R),
-        get_dev(new, R)
+        get_dev(R)
     catch
         Type:Reason->
             gusion_util:error_msg(open, {Type, Reason})
@@ -24,15 +25,19 @@ open(Dir, Name)->
         {ok, Fd}=file:open(ConfigAbsName, read),
         {ok, Config}=io:read(Fd, ''),
         file:close(Fd),
-        get_dev(open, Config)
+        get_dev(Config)
     catch
         Type:Reason->
             gusion_util:error_msg(open, {Type, Reason})
     end.
 
 -spec close(record())->ok|{error, term()}.
-close(Dev)->
-    Id=Dev#gusion_dev.id,
+close(#gusion_dev{
+    id=Id,
+    pid=Pid
+})->
+    gen_server:call(Pid, cancel_tref),
+    gen_server:call(Pid, clear_buffer),
     supervisor:terminate_child(gusion_sup, Id),
     supervisor:delete_child(gusion_sup, Id).
 
@@ -60,8 +65,32 @@ dirty_read(Dev, Index)->
             IndexSize, Index),
         {ok, Ret}
     catch
-        _:Reason->{error, Reason}
+        Type:Reason->
+            gusion_util:error_msg(read, {Type, Reason})
     end.
+
+-spec delete(record())->ok|{error, term()}.
+delete(#gusion_dev{
+    pid=Pid,
+    id=Id,
+    files=[DataAbsName, IndexAbsName, ConfigAbsName]
+})->
+    try
+        gen_server:call(Pid, cancel_tref),
+        ok=supervisor:terminate_child(gusion_sup, Id),
+        ok=supervisor:delete_child(gusion_sup, Id),
+        ok=file:delete(DataAbsName),
+        ok=file:delete(IndexAbsName),
+        ok=file:delete(ConfigAbsName)
+    catch
+        Type:Reason->
+            gusion_util:error_msg(delete, {Type, Reason})
+    end.
+
+-spec read_by_time(record(), tuple(), tuple())->{ok, list()}|{error, term()}.
+read_by_time(Dev, Start, End)->
+    Pid=Dev#gusion_dev.pid,
+    gen_server:call(Pid, {read_by_time, Start, End}).
 
 create_data_file(Config=#gusion_config{
     dir=Dir,
@@ -100,13 +129,13 @@ create_data_file(Config=#gusion_config{
             error(create_data_file_failure)
     end.
 
-get_dev(Action, Config=#gusion_config{
+get_dev(Config=#gusion_config{
     name=Name,
     names=Names
 })->
     Id=lists:concat(["_", Name]),
     ChildSpec={Id, 
-        {gusion_worker_server, start_link, [Action, Config]},
+        {gusion_worker_server, start_link, [Config]},
         permanent, 5000, worker, [gusion_worker_server]},
     case supervisor:start_child(gusion_sup, ChildSpec) of
         {ok, Child}->

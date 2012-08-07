@@ -20,7 +20,7 @@
         files::list(string())
     }).
 
--record(gusion_writer_server_state, {
+-record(gusion_worker_server_state, {
         data_file::string(),
         index_file::string(),
         config_file::string(),
@@ -31,7 +31,8 @@
         tag_size::integer(),
         pos_size::integer(),
         index_size::integer(),
-        data_pos::integer()
+        data_pos::integer(),
+        timer_ref::term()
     }).
 
 -record(gusion_index, {
