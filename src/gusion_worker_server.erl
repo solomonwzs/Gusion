@@ -39,7 +39,7 @@ init([Config])->
             timer_ref=TRef
         }}.
 
-handle_call({write, Data}, _From, State=#gusion_worker_server_state{
+handle_call({write, Tag, Data}, _From, State=#gusion_worker_server_state{
     data_file=DataFile,
     index_file=IndexFile,
     max_buffer_size=MaxBufferSize,
@@ -52,7 +52,7 @@ handle_call({write, Data}, _From, State=#gusion_worker_server_state{
     Bin=term_to_binary(Data),
     NewDataBuf= <<DataBuf/binary, Bin/binary>>,
     Seconds=calendar:datetime_to_gregorian_seconds(calendar:local_time()),
-    IndexBin= <<Seconds:(?TIMESTAMP_SIZE*8), 0:(TagSize*8),
+    IndexBin= <<Seconds:(?TIMESTAMP_SIZE*8), Tag:(TagSize*8),
         DataPos:(PosSize*8), (size(Bin)):(PosSize*8)>>,
     NewIndexBuf= <<IndexBuf/binary, IndexBin/binary>>,
     NewDataPos=DataPos+size(Bin),
@@ -84,20 +84,6 @@ handle_call({read, Index}, _From, State=#gusion_worker_server_state{
         Reply=gusion_util:get_data(DataFile, IndexFile, TagSize, PosSize,
             IndexSize, Index),
         {reply, {ok, Reply}, State}
-    catch
-        _:Reason->{reply, {error, Reason}, State}
-    end;
-handle_call({read_by_time, Start, End}, _From, State=#gusion_worker_server_state{
-    data_file=DataFile,
-    index_file=IndexFile,
-    tag_size=TagSize,
-    pos_size=PosSize,
-    index_size=IndexSize
-})->
-    try
-        Ret=gusion_util:get_data_by_time(DataFile, IndexFile, TagSize, PosSize,
-            IndexSize, Start, End),
-        {reply, {ok, Ret}, State}
     catch
         _:Reason->{reply, {error, Reason}, State}
     end;

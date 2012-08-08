@@ -1,7 +1,7 @@
 -module(gusion).
 -include("gusion.hrl").
--export([new/1, open/2, close/1, write/2, read/2, dirty_read/2, delete/1,
-        read_by_time/3]).
+-export([new/1, open/2, close/1, write/2, write/3, read/2, dirty_read/2,
+        delete/1]).
 
 -spec new(list())->{ok, record()}|{error, term()}.
 new(Config)->
@@ -43,8 +43,12 @@ close(#gusion_dev{
 
 -spec write(record(), term())->ok|{error, term()}.
 write(Dev, Data)->
+    write(Dev, 0, Data).
+
+-spec write(record(), integer(), term())->ok|{error, term()}.
+write(Dev, Tag, Data)->
     Pid=Dev#gusion_dev.pid,
-    gen_server:call(Pid, {write, Data}).
+    gen_server:call(Pid, {write, Tag, Data}).
 
 -spec read(record(), integer())->ok|{error, term()}.
 read(Dev, Index)->
@@ -86,11 +90,6 @@ delete(#gusion_dev{
         Type:Reason->
             gusion_util:error_msg(delete, {Type, Reason})
     end.
-
--spec read_by_time(record(), tuple(), tuple())->{ok, list()}|{error, term()}.
-read_by_time(Dev, Start, End)->
-    Pid=Dev#gusion_dev.pid,
-    gen_server:call(Pid, {read_by_time, Start, End}).
 
 create_data_file(Config=#gusion_config{
     dir=Dir,

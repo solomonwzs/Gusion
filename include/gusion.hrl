@@ -42,4 +42,16 @@
         bytes::integer()
     }).
 
+-record(gusion_iterator, {
+        data_fd::term(),
+        index_fd::term(),
+        start_sec::'_'|integer(),
+        end_sec::'_'|integer(),
+        tags::'_'|list(),
+        index_size::integer(),
+        tag_size::integer(),
+        pos_size::integer(),
+        index::integer()
+    }).
+
 -endif.
