@@ -37,7 +37,7 @@
 
 -record(gusion_index, {
         timestamp::integer(),
-        tag::term(),
+        tag::integer(),
         data_pos::integer(),
         bytes::integer()
     }).
