@@ -1,6 +1,6 @@
 -module(gusion_util).
 -include("gusion.hrl").
--export([get_config/1, get_file_size/1, get_data/6, error_msg/2]).
+-export([get_config/1, get_file_size/1, get_data_by_index/6, error_msg/2]).
 
 -define(int_byte_len(Int), ceil(math:log(Int)/math:log(2)/8)).
 -define(int_bit_len(Int), ?int_byte_len(Int)*8).
@@ -38,7 +38,7 @@ get_file_size(File)->
     {ok, Info}=file:read_file_info(File),
     element(2, Info).
 
-get_data(DataFile, IndexFile, TagSize, PosSize, IndexSize, Index)->
+get_data_by_index(DataFile, IndexFile, TagSize, PosSize, IndexSize, Index)->
     IndexBin=get_index(IndexFile, IndexSize, Index),
     TagBitsSize=TagSize*8,
     PosBitsSize=PosSize*8,
@@ -46,7 +46,7 @@ get_data(DataFile, IndexFile, TagSize, PosSize, IndexSize, Index)->
         DataPos:PosBitsSize, Bytes:PosBitsSize>> =IndexBin,
     get_data(DataFile, DataPos, Bytes).
 
-get_data(DataFile, DataPos, Bytes)->
+get_data(DataFile, DataPos, Bytes) when is_integer(DataPos)->
     {ok, Fd}=file:open(DataFile, [raw, binary]),
     Ret=file:pread(Fd, DataPos, Bytes),
     file:close(Fd),

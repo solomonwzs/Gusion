@@ -54,4 +54,26 @@
         index::integer()
     }).
 
+-record(gusion_blog_process_state, {
+        file_name::string(),
+        progress::integer()
+    }).
+
+-record(gusion_blog_state, {
+        name::string(),
+        writing_file::string(),
+        processing_files::list(record(gusion_blog_process_state))
+    }).
+
+-record(gusion_blog_dev, {
+        mfv::tuple(atom(), atom(), list()),
+        process_interval::integer(),
+        pid::pid()
+    }).
+
+-record(gusion_blog_schema, {
+        dir::string(),
+        blog_dict::tuple()
+    }).
+
 -endif.

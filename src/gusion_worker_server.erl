@@ -9,6 +9,7 @@ start_link(Config)->
     gen_server:start_link(?MODULE, [Config], []).
 
 init([Config])->
+    process_flag(trap_exit, true),
     #gusion_config{
         names=Names,
         buffer_size=BufferSize,
@@ -21,7 +22,8 @@ init([Config])->
         Delay>0->
             timer:send_interval(Delay, clear_buffer);
         true->
-            {ok, nil}
+            timer:send_interval(1000, clear_buffer)
+            %{ok, nil}
     end,
     DataPos=gusion_util:get_file_size(DataFile),
     {ok, #gusion_worker_server_state{
@@ -60,7 +62,6 @@ handle_call({write, Tag, Data}, _From, State=#gusion_worker_server_state{
     if
         BufferSize>=MaxBufferSize->
             write_to_file(NewDataBuf, NewIndexBuf, DataFile, IndexFile),
-            %write_to_file(NewDataBuf, NewIndexBuf, DataFd, IndexFd),
             {reply, ok, State#gusion_worker_server_state{
                     data_buffer= <<>>,
                     index_buffer= <<>>,
@@ -81,8 +82,8 @@ handle_call({read, Index}, _From, State=#gusion_worker_server_state{
     index_size=IndexSize
 })->
     try
-        Reply=gusion_util:get_data(DataFile, IndexFile, TagSize, PosSize,
-            IndexSize, Index),
+        Reply=gusion_util:get_data_by_index(DataFile, IndexFile, TagSize,
+            PosSize, IndexSize, Index),
         {reply, {ok, Reply}, State}
     catch
         _:Reason->{reply, {error, Reason}, State}

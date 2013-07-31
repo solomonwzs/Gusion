@@ -65,7 +65,7 @@ dirty_read(Dev, Index)->
         TagSize=Config#gusion_config.tag_size,
         PosSize=Config#gusion_config.pos_size,
         IndexSize=Config#gusion_config.index_size,
-        Ret=gusion_util:get_data(DataFile, IndexFile, TagSize, PosSize,
+        Ret=gusion_util:get_data_by_index(DataFile, IndexFile, TagSize, PosSize,
             IndexSize, Index),
         {ok, Ret}
     catch
