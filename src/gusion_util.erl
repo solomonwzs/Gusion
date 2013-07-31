@@ -1,21 +1,16 @@
 -module(gusion_util).
 -include("gusion.hrl").
--export([cell/1, int_byte_len/1, int_bit_len/1, get_config/1,
-        get_file_size/1, get_data/6, error_msg/2]).
+-export([get_config/1, get_file_size/1, get_data/6, error_msg/2]).
 
-cell(F)->
+-define(int_byte_len(Int), ceil(math:log(Int)/math:log(2)/8)).
+-define(int_bit_len(Int), ?int_byte_len(Int)*8).
+
+ceil(F)->
     I=round(F),
     if
         F>I->I+1;
         true->I
     end.
-
-int_byte_len(I)->
-    F=math:log(I)/math:log(2)/8,
-    cell(F).
-
-int_bit_len(I)->
-    int_byte_len(I)*8.
 
 get_config(Config)->
     Name=proplists:get_value(name, Config),
@@ -24,7 +19,7 @@ get_config(Config)->
     Dir=proplists:get_value(dir, Config, "./data"),
     TagSize=proplists:get_value(tag_size, Config, 3),
     MaxSize=proplists:get_value(max_size, Config, 1024*1024*1024*1024),
-    PosSize=gusion_util:int_byte_len(MaxSize),
+    PosSize=?int_byte_len(MaxSize),
     DataAbsName=filename:absname_join(Dir, lists:concat([Name, ".dat"])),
     IndexAbsName=filename:absname_join(Dir, lists:concat([Name, ".ind"])),
     ConfigAbsName=filename:absname_join(Dir, lists:concat([Name, ".con"])),
@@ -63,7 +58,7 @@ get_data(DataFile, DataPos, Bytes)->
     end.
 
 get_index(IndexFile, IndexSize, Index) when is_integer(Index) andalso Index>0 ->
-    FileSize=gusion_util:get_file_size(IndexFile),
+    FileSize=get_file_size(IndexFile),
     Offset=(Index-1)*IndexSize,
     if
         Offset>=FileSize->
