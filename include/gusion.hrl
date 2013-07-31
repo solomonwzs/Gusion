@@ -61,14 +61,11 @@
 
 -record(gusion_blog_state, {
         name::string(),
-        writing_file::string(),
-        processing_files::list(record(gusion_blog_process_state))
-    }).
-
--record(gusion_blog_dev, {
-        mfv::tuple(atom(), atom(), list()),
-        process_interval::integer(),
-        pid::pid()
+        dir::string(),
+        wfile::string(),
+        pfiles::list(record(gusion_blog_process_state)),
+        mf::tuple(atom(), atom()),
+        process_interval::integer()
     }).
 
 -record(gusion_blog_schema, {
