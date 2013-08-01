@@ -1,4 +1,3 @@
-
 -module(gusion_blog_schema).
 -behaviour(gen_server).
 -include("gusion.hrl").
@@ -9,20 +8,30 @@ init([Dir])->
     process_flag(trap_exit, true),
     SchemaFile=filename:absname_join(Dir, "schema"),
     {ok, Bin}=file:read_file(SchemaFile),
-    {ok, #gusion_blog_schema{dir=Dir, blog_dict=binary_to_term(Bin)}}.
+    {ok, #gusion_blog_schema{dir=Dir, blog_set=binary_to_term(Bin)}}.
 
-handle_call({update_blog, BLogName, BLogState}, _From, State)->
-    #gusion_blog_schema{dir=Dir, blog_dict=BLogDict}=State,
-    NewBLogDict=dict:store(BLogName, BLogState, BLogDict),
-    SchemaFile=filename:absname_join(Dir, "schema"),
-    file:write_file(SchemaFile, term_to_binary(NewBLogDict), [write]),
-    {reply, ok,  State#gusion_blog_schema{blog_dict=NewBLogDict}};
-handle_call({delete_blog, BLogName}, _From, State)->
-    #gusion_blog_schema{dir=Dir, blog_dict=BLogDict}=State,
-    NewBLogDict=dict:erase(BLogName, BLogDict),
-    SchemaFile=filename:absname_join(Dir, "schema"),
-    file:write_file(SchemaFile, term_to_binary(NewBLogDict), [write]),
-    {reply, ok,  State#gusion_blog_schema{blog_dict=NewBLogDict}};
+handle_call({add_blog, BLogName}, _From, State)->
+    #gusion_blog_schema{dir=Dir, blog_set=BLogSet}=State,
+    case sets:is_element(BLogName, BLogSet) of
+        false->
+            SchemaFile=filename:absname_join(Dir, "schema"),
+            NewBLogSet=sets:add_element(BLogName, BLogSet),
+            ok=file:write_file(SchemaFile, term_to_binary(NewBLogSet, [write])),
+            {reply, ok, State#gusion_blog_schema{blog_set=NewBLogSet}};
+        true->
+            {reply, {aborted, {exists, BLogName}}, State}
+    end;
+handle_call({del_blog, BLogName}, _From, State)->
+    #gusion_blog_schema{dir=Dir, blog_set=BLogSet}=State,
+    case sets:is_element(BLogName, BLogSet) of
+        true->
+            SchemaFile=filename:absname_join(Dir, "schema"),
+            NewBLogSet=sets:del_element(BLogName, BLogSet),
+            ok=file:write_file(SchemaFile, term_to_binary(NewBLogSet, [write])),
+            {reply, ok, State#gusion_blog_schema{blog_set=NewBLogSet}};
+        false->
+            {reply, {aborted, {no_exists, BLogName}}, State}
+    end;
 handle_call(_Msg, _From, State)->
     {reply, reply, State}.
 

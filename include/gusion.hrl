@@ -3,6 +3,9 @@
 
 -define(TIMESTAMP_SIZE, 7).
 
+-define(timestamp, calendar:datetime_to_gregorian_seconds(
+        calendar:universal_time())).
+
 -record(gusion_config, {
         name::string(),
         names::list(string()),
@@ -54,23 +57,17 @@
         index::integer()
     }).
 
--record(gusion_blog_process_state, {
-        file_name::string(),
-        progress::integer()
-    }).
-
 -record(gusion_blog_state, {
         name::string(),
-        dir::string(),
         wfile::string(),
-        pfiles::list(record(gusion_blog_process_state)),
+        pfiles::list(string()),
         mf::tuple(atom(), atom()),
         process_interval::integer()
     }).
 
 -record(gusion_blog_schema, {
         dir::string(),
-        blog_dict::tuple()
+        blog_set::tuple()
     }).
 
 -endif.
