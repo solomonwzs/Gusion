@@ -1,6 +1,7 @@
 -module(gusion_util).
 -include("gusion.hrl").
--export([get_config/1, get_file_size/1, get_data_by_index/6, error_msg/2]).
+-export([get_config/1, get_file_size/1, get_data_by_index/6, error_msg/2,
+        disk_log_open/1]).
 
 -define(int_byte_len(Int), ceil(math:log(Int)/math:log(2)/8)).
 -define(int_bit_len(Int), ?int_byte_len(Int)*8).
@@ -81,4 +82,11 @@ error_msg(Tag, {Type, Reason})->
             end;
         _->
             {error, Reason}
+    end.
+
+disk_log_open(ArgL)->
+    case disk_log:open(ArgL) of
+        {ok, L}->L;
+        {repaired, L, _, _}->L;
+        {error, Reason}->error(Reason)
     end.

@@ -1,10 +1,19 @@
 -ifndef(GUSION_INCLUDED).
 -define(GUSION_INCLUDED, 1).
 
+-type set()::tuple().
+-type gb_set()::tuple().
+
+-type log()::term().
+-type continuation()::term().
+
 -define(TIMESTAMP_SIZE, 7).
 
 -define(timestamp, calendar:datetime_to_gregorian_seconds(
         calendar:universal_time())).
+-define(set_add_element(Element, Set), sets:add_element(Element, Set)).
+-define(set_del_element(Element, Set), sets:del_element(Element, Set)).
+-define(set_is_element(Element, Set), sets:is_element(Element, Set)).
 
 -record(gusion_config, {
         name::string(),
@@ -60,14 +69,15 @@
 -record(gusion_blog_state, {
         name::string(),
         wfile::string(),
-        pfiles::list(string()),
+        pfiles::set(),
         mf::tuple(atom(), atom()),
+        chunk_num::integer()|infinity,
         process_interval::integer()
     }).
 
 -record(gusion_blog_schema, {
         dir::string(),
-        blog_set::tuple()
+        blog_set::set()
     }).
 
 -endif.

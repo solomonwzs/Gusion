@@ -10,12 +10,18 @@
         wfile_log::term()
     }).
 
+-define(write_state_file(Dir, Name, BLogState),
+    file:write_file(filename:absname_join(Dir, Name++".bsta"), BLogState)).
+
 init([Dir, Name])->
     process_flag(trap_exit, true),
     StateFileName=filename:absname_join(Dir, Name++'.bsta'),
     {ok, Bin}=file:read_file(StateFileName),
     {WFileLog, NewBLogState}=swap_wfile(Dir, binary_to_term(Bin)),
-    {ok, #state{dir=Dir, blog_state=NewBLogState, wfile_log=WFileLog}}.
+    {ok, #state{
+            dir=Dir,
+            blog_state=NewBLogState,
+            wfile_log=WFileLog}}.
 
 handle_call({write_blog, Term}, _From, State)->
     Reply=case disk_log:blog(State#state.wfile_log, term_to_binary(Term)) of
@@ -23,6 +29,23 @@ handle_call({write_blog, Term}, _From, State)->
         {error, Reason}->{aborted, Reason}
     end,
     {ok, Reply, State};
+handle_call({del_process_blog, PFile}, _From, State)->
+    #state{
+        dir=Dir,
+        blog_state=BLogState
+    }=State,
+    DataFileName=filename:absname_join(Dir, PFile++".bdat"),
+    ProcessFileName=filename:absname_join(Dir, PFile++".bpro"),
+    ok=file:delete(DataFileName),
+    ok=file:delete(ProcessFileName),
+    #gusion_blog_state{
+        name=Name,
+        pfiles=PFiles
+    }=BLogState,
+    NewBLogState=BLogState#gusion_blog_state{
+        pfiles=?set_del_element(PFile, PFiles)},
+    ok=?write_state_file(Dir, Name, BLogState),
+    {reply, ok, State#state{blog_state=NewBLogState}};
 handle_call(_Msg, _From, State)->
     {reply, reply, State}.
 
@@ -30,10 +53,16 @@ handle_cast(_Msg, State)->
     {noreply, State}.
 
 handle_info(swap_wfile, State)->
-    #state{dir=Dir, blog_state=BLogState, wfile_log=WFileLog}=State,
+    #state{
+        dir=Dir,
+        blog_state=BLogState,
+        wfile_log=WFileLog
+    }=State,
     disk_log:close(WFileLog),
     {NewWFileLog, NewBLogState}=swap_wfile(Dir, BLogState),
-    {noreply, State#state{wfile_log=NewWFileLog, blog_state=NewBLogState}};
+    {noreply, State#state{
+            wfile_log=NewWFileLog,
+            blog_state=NewBLogState}};
 handle_info(_Msg, State)->
     {noreply, State}.
 
@@ -45,20 +74,23 @@ terminate(_Reason, State)->
     ok.
 
 swap_wfile(Dir, BLogState)->
-    #gusion_blog_state{name=Name, wfile=WFile, pfiles=PFiles}=BLogState,
-    StateFileName=filename:absname_join(Dir, Name++'.bsta'),
+    #gusion_blog_state{
+        name=Name,
+        wfile=WFile,
+        pfiles=PFiles
+    }=BLogState,
 
     NewWFile=Name++"_"++integer_to_list(?timestamp),
     {ok, WFileLog}=disk_log:open([{name, NewWFile++".bdat"},
             {file, filename:absname_join(Dir, NewWFile++"bdat")}]),
 
-    NewPFiles=PFiles++[WFile],
-    {ok, Ret}=disk_log:open([{name, PFiles++".bpro"},
-            {file, filename:absname_join(Dir, PFiles++".bpro")}]),
-    ok=disk_log:blog(Ret, integer_to_binary(0)),
+    NewPFiles=?set_add_element(WFile, PFiles),
+    {ok, Ret}=disk_log:open([{name, WFile++".bpro"},
+            {file, filename:absname_join(Dir, WFile++".bpro")}]),
+    ok=disk_log:blog(Ret, term_to_binary(start)),
     ok=disk_log:close(Ret),
 
     NewBLogState=BLogState#gusion_blog_state{wfile=NewWFile, pfiles=NewPFiles},
-    file:write_file(StateFileName, term_to_binary(NewBLogState)),
+    ok=?write_state_file(Dir, Name, BLogState),
 
     {WFileLog, NewBLogState}.

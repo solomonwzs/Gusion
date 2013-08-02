@@ -12,10 +12,10 @@ init([Dir])->
 
 handle_call({add_blog, BLogName}, _From, State)->
     #gusion_blog_schema{dir=Dir, blog_set=BLogSet}=State,
-    case sets:is_element(BLogName, BLogSet) of
+    case ?set_is_element(BLogName, BLogSet) of
         false->
             SchemaFile=filename:absname_join(Dir, "schema"),
-            NewBLogSet=sets:add_element(BLogName, BLogSet),
+            NewBLogSet=?set_add_element(BLogName, BLogSet),
             ok=file:write_file(SchemaFile, term_to_binary(NewBLogSet, [write])),
             {reply, ok, State#gusion_blog_schema{blog_set=NewBLogSet}};
         true->
@@ -23,10 +23,10 @@ handle_call({add_blog, BLogName}, _From, State)->
     end;
 handle_call({del_blog, BLogName}, _From, State)->
     #gusion_blog_schema{dir=Dir, blog_set=BLogSet}=State,
-    case sets:is_element(BLogName, BLogSet) of
+    case ?set_is_element(BLogName, BLogSet) of
         true->
             SchemaFile=filename:absname_join(Dir, "schema"),
-            NewBLogSet=sets:del_element(BLogName, BLogSet),
+            NewBLogSet=?set_del_element(BLogName, BLogSet),
             ok=file:write_file(SchemaFile, term_to_binary(NewBLogSet, [write])),
             {reply, ok, State#gusion_blog_schema{blog_set=NewBLogSet}};
         false->
