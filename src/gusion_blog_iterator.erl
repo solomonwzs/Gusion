@@ -4,18 +4,26 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, code_change/3,
         terminate/2]).
 
+-define(apply(Func, Arg),
+    if
+        is_function(Func)->Func(Arg);
+        is_tuple(Func)->
+            {M, F}=Func,
+            apply(M, F, [Arg])
+    end).
+
 -record(state, {
         pfile::string(),
         worker_server::pid(),
         data_log::log(),
         data_con::continuation()|start,
         process_log::log(),
-        chunk_num::integer()|infinity,
-        wf::{atom(), atom()},
+        chunk_size::integer()|infinity,
+        func::{atom(), atom()}|'fun'(),
         process::busy|compiled
     }).
 
-init([WorkerServer, Dir, PFile, WF, ChunkNum])->
+init([WorkerServer, Dir, PFile, Func, ChunkSize])->
     process_flag(trap_exit, true),
     try
         DataLog=gusion_util:disk_log_open([{name, PFile++".bdat"},
@@ -28,17 +36,43 @@ init([WorkerServer, Dir, PFile, WF, ChunkNum])->
                 data_log=DataLog,
                 data_con=get_data_con(ProcessLog, start, start),
                 process_log=ProcessLog,
-                chunk_num=ChunkNum,
-                wf=WF,
+                chunk_size=ChunkSize,
+                func=Func,
                 process=busy
             }}
     catch
         _:Reason->{stop, Reason}
     end.
 
+handle_call(get_bchunk, _From, State=#state{
+        data_log=DataLog,
+        data_con=DataCon,
+        chunk_size=ChunkSize
+    })->
+    Chunk=case disk_log:bchunk(DataLog, DataCon, ChunkSize) of
+        eof->eof;
+        {error, Reason}->error(Reason);
+        BchunkRet->element(2, BchunkRet)
+    end,
+    {reply, {ok, Chunk}, State};
 handle_call(_Msg, _From, State)->
     {reply, reply, State}.
 
+%handle_cast(start, State=#state{
+%        data_log=DataLog,
+%        data_con=DataCon,
+%        chunk_size=ChunkSize,
+%        func=Func
+%    })->
+%    {NextDataCon, Chunk}=case disk_log:bchunk(DataLog, DataCon, ChunkSize) of
+%        eof->{nil, eof};
+%        {error, Reason}->{DataCon, nil};
+%        BchunkRet->{element(1, BchunkRet), element(2, BchunkRet)}
+%    end,
+%    case ?apply(Func, Chunk) of
+%        {ok, continue}->gen_server:cast(self(), continue);
+%        {ok, pause}->do_nothing;
+%        _->
 handle_cast(_Msg, State)->
     {noreply, State}.
 

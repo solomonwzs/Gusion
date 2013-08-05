@@ -70,7 +70,7 @@
         name::string(),
         wfile::string(),
         pfiles::set(),
-        mf::tuple(atom(), atom()),
+        func::{atom(), atom()}|'fun'(),
         chunk_num::integer()|infinity,
         process_interval::integer()
     }).
