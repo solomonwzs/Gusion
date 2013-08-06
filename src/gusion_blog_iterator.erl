@@ -58,21 +58,31 @@ handle_call(get_bchunk, _From, State=#state{
 handle_call(_Msg, _From, State)->
     {reply, reply, State}.
 
-%handle_cast(start, State=#state{
-%        data_log=DataLog,
-%        data_con=DataCon,
-%        chunk_size=ChunkSize,
-%        func=Func
-%    })->
-%    {NextDataCon, Chunk}=case disk_log:bchunk(DataLog, DataCon, ChunkSize) of
-%        eof->{nil, eof};
-%        {error, Reason}->{DataCon, nil};
-%        BchunkRet->{element(1, BchunkRet), element(2, BchunkRet)}
-%    end,
-%    case ?apply(Func, Chunk) of
-%        {ok, continue}->gen_server:cast(self(), continue);
-%        {ok, pause}->do_nothing;
-%        _->
+handle_cast(run, State=#state{
+        data_log=DataLog,
+        data_con=DataCon,
+        chunk_size=ChunkSize,
+        func=Func,
+        process_log=ProcessLog
+    })->
+    {NextDataCon, Chunk}=case disk_log:bchunk(DataLog, DataCon, ChunkSize) of
+        eof->{nil, eof};
+        {error, _Reason}->{DataCon, nil};
+        BchunkRet->{element(1, BchunkRet), element(2, BchunkRet)}
+    end,
+    NewState=case ?apply(Func, Chunk) of
+        {ok, Cmd}->
+            ok=disk_log:blog(ProcessLog, term_to_binary(NextDataCon)),
+            if
+                Cmd=:=continue->gen_server:cast(self(), run);
+                Cmd=:=finish->gen_server:cast(self(), finish);
+                true->ok
+            end,
+            State#state{data_con=DataCon};
+        _->State
+    end,
+    {noreply, NewState};
+%handle_cast(finish, State)->
 handle_cast(_Msg, State)->
     {noreply, State}.
 
