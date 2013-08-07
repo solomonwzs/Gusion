@@ -11,9 +11,17 @@
 
 -define(timestamp, calendar:datetime_to_gregorian_seconds(
         calendar:universal_time())).
--define(set_add_element(Element, Set), sets:add_element(Element, Set)).
--define(set_del_element(Element, Set), sets:del_element(Element, Set)).
--define(set_is_element(Element, Set), sets:is_element(Element, Set)).
+-define(set_add_element(Element, Set), [Set|Element]).
+-define(set_del_element(Element, Set), lists:delete(Element, Set)).
+-define(set_is_element(Element, Set), lists:member(Element, Set)).
+-define(set_get_element(Set), lists:last(Set)).
+
+-define(iter_sup_name(Name), "gbis:"++Name).
+-define(worker_server_name(Name), "gbws:"++Name).
+
+-define(state_file_name(Name), Name++".bsta").
+-define(data_file_name(Name), Name++".bdat").
+-define(process_file_name(Name), Name++".bpro").
 
 -record(gusion_config, {
         name::string(),

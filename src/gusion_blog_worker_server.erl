@@ -7,15 +7,16 @@
 -record(state, {
         dir::string(),
         blog_state::record(gusion_blog_state),
-        wfile_log::term()
+        wfile_log::log()
     }).
 
 -define(write_state_file(Dir, Name, BLogState),
-    file:write_file(filename:absname_join(Dir, Name++".bsta"), BLogState)).
+    file:write_file(filename:absname_join(Dir, ?state_file_name(Name)),
+        BLogState)).
 
 init([Dir, Name])->
     process_flag(trap_exit, true),
-    StateFileName=filename:absname_join(Dir, Name++'.bsta'),
+    StateFileName=filename:absname_join(Dir, ?state_file_name(Name)),
     {ok, Bin}=file:read_file(StateFileName),
     {WFileLog, NewBLogState}=swap_wfile(Dir, binary_to_term(Bin)),
     {ok, #state{
@@ -34,8 +35,8 @@ handle_call({del_process_blog, PFile}, _From, State)->
         dir=Dir,
         blog_state=BLogState
     }=State,
-    DataFileName=filename:absname_join(Dir, PFile++".bdat"),
-    ProcessFileName=filename:absname_join(Dir, PFile++".bpro"),
+    DataFileName=filename:absname_join(Dir, ?data_file_name(PFile)),
+    ProcessFileName=filename:absname_join(Dir, ?process_file_name(PFile)),
     ok=file:delete(DataFileName),
     ok=file:delete(ProcessFileName),
     #gusion_blog_state{
@@ -49,6 +50,7 @@ handle_call({del_process_blog, PFile}, _From, State)->
 handle_call(_Msg, _From, State)->
     {reply, reply, State}.
 
+%handle_cast({compiled, PFile}, State)->
 handle_cast(_Msg, State)->
     {noreply, State}.
 
@@ -81,12 +83,12 @@ swap_wfile(Dir, BLogState)->
     }=BLogState,
 
     NewWFile=Name++"_"++integer_to_list(?timestamp),
-    {ok, WFileLog}=disk_log:open([{name, NewWFile++".bdat"},
-            {file, filename:absname_join(Dir, NewWFile++"bdat")}]),
+    {ok, WFileLog}=disk_log:open([{name, ?data_file_name(NewWFile)},
+            {file, filename:absname_join(Dir, ?data_file_name(NewWFile))}]),
 
     NewPFiles=?set_add_element(WFile, PFiles),
-    {ok, Ret}=disk_log:open([{name, WFile++".bpro"},
-            {file, filename:absname_join(Dir, WFile++".bpro")}]),
+    {ok, Ret}=disk_log:open([{name, ?process_file_name(WFile)},
+            {file, filename:absname_join(Dir, ?process_file_name(WFile))}]),
     ok=disk_log:blog(Ret, term_to_binary(start)),
     ok=disk_log:close(Ret),
 
