@@ -75,6 +75,9 @@ terminate(_Reason, State)->
     disk_log:close(State#state.wfile_log),
     ok.
 
+%new_process_task(State=#state{
+%    })->
+
 swap_wfile(Dir, BLogState)->
     #gusion_blog_state{
         name=Name,

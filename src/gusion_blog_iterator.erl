@@ -55,6 +55,8 @@ handle_call(get_bchunk, _From, State=#state{
         BchunkRet->element(2, BchunkRet)
     end,
     {reply, {ok, Chunk}, State};
+handle_call(get_progress, _From, State)->
+    {reply, State#state.progress, State};
 handle_call(_Msg, _From, State)->
     {reply, reply, State}.
 
@@ -75,16 +77,17 @@ handle_cast(run, State=#state{
     NewState=case ?apply(Func, Chunk) of
         {ok, Cmd}->
             ok=disk_log:blog(ProcessLog, term_to_binary(NextDataCon)),
-            Progress=if
+            if
                 Cmd=:=continue->
                     gen_server:cast(self(), run),
-                    busy;
+                    State#state{data_con=DataCon, progress=busy};
                 Cmd=:=compiled->
-                    gen_server:cast(WorkerServer, {compiled, PFile}),
-                    compiled;
-                true->busy
-            end,
-            State#state{data_con=DataCon, progress=Progress};
+                    disk_log:close(DataLog),
+                    disk_log:close(ProcessLog),
+                    gen_server:call(WorkerServer, {del_process_blog, PFile}),
+                    State#state{worker_server=WorkerServer, progress=idle};
+                true->State#state{progress=busy}
+            end;
         _->State
     end,
     {noreply, NewState};
