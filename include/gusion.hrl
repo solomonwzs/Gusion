@@ -15,6 +15,11 @@
 -define(set_del_element(Element, Set), lists:delete(Element, Set)).
 -define(set_is_element(Element, Set), lists:member(Element, Set)).
 -define(set_get_element(Set), lists:last(Set)).
+-define(set_pull_element(Set),
+    if
+        length(Set)=:=0->{nil, []};
+        true->{hd(Set), tl(Set)}
+    end).
 
 -define(iter_sup_name(Name), "gbis:"++Name).
 -define(worker_server_name(Name), "gbws:"++Name).
@@ -77,9 +82,10 @@
 -record(gusion_blog_state, {
         name::string(),
         wfile::string(),
+        ifiles::set(),
         pfiles::set(),
         func::{atom(), atom()}|'fun'(),
-        chunk_num::integer()|infinity,
+        chunk_size::integer()|infinity,
         process_interval::integer()
     }).
 

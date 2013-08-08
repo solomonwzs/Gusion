@@ -76,26 +76,34 @@ terminate(_Reason, State)->
     ok.
 
 %new_process_task(State=#state{
+%        dir=Dir,
+%        blog_state=BLogState
 %    })->
+%    #gusion_blog_state{
+%        name=Name,
+%        pfiles=PFiles,
+%        func=Func
+%    }=BLogState,
+%    PFiles=
 
 swap_wfile(Dir, BLogState)->
     #gusion_blog_state{
         name=Name,
         wfile=WFile,
-        pfiles=PFiles
+        ifiles=IFiles
     }=BLogState,
 
     NewWFile=Name++"_"++integer_to_list(?timestamp),
     {ok, WFileLog}=disk_log:open([{name, ?data_file_name(NewWFile)},
             {file, filename:absname_join(Dir, ?data_file_name(NewWFile))}]),
 
-    NewPFiles=?set_add_element(WFile, PFiles),
+    NewIFiles=?set_add_element(WFile, IFiles),
     {ok, Ret}=disk_log:open([{name, ?process_file_name(WFile)},
             {file, filename:absname_join(Dir, ?process_file_name(WFile))}]),
     ok=disk_log:blog(Ret, term_to_binary(start)),
     ok=disk_log:close(Ret),
 
-    NewBLogState=BLogState#gusion_blog_state{wfile=NewWFile, pfiles=NewPFiles},
+    NewBLogState=BLogState#gusion_blog_state{wfile=NewWFile, ifiles=NewIFiles},
     ok=?write_state_file(Dir, Name, BLogState),
 
     {WFileLog, NewBLogState}.
