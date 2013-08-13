@@ -84,7 +84,8 @@
         wfile::string(),
         ifiles::set(),
         pfiles::set(),
-        func::{atom(), atom()}|'fun'(),
+        pro_func::{atom(), atom()},
+        rm_func::{atom(), atom()},
         chunk_size::integer()|infinity,
         process_interval::integer()
     }).

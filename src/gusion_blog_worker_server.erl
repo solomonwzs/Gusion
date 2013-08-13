@@ -30,19 +30,17 @@ handle_call({write_blog, Term}, _From, State)->
         {error, Reason}->{aborted, Reason}
     end,
     {ok, Reply, State};
-handle_call({del_process_blog, PFile}, _From, State)->
+handle_call({remove_process_blog, PFile}, _From, State)->
     #state{
         dir=Dir,
         blog_state=BLogState
     }=State,
-    DataFileName=filename:absname_join(Dir, ?data_file_name(PFile)),
-    ProcessFileName=filename:absname_join(Dir, ?process_file_name(PFile)),
-    ok=file:delete(DataFileName),
-    ok=file:delete(ProcessFileName),
     #gusion_blog_state{
         name=Name,
-        pfiles=PFiles
+        pfiles=PFiles,
+        rm_func={RModule, RFunc}
     }=BLogState,
+    ok=apply(RModule, RFunc, [Dir, PFile]),
     NewBLogState=BLogState#gusion_blog_state{
         pfiles=?set_del_element(PFile, PFiles)},
     ok=?write_state_file(Dir, Name, BLogState),
