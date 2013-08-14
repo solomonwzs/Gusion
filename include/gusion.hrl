@@ -30,6 +30,9 @@
 -define(data_file_name(Name), Name++".bdat").
 -define(process_file_name(Name), Name++".bpro").
 
+-define(sup_children(Name), supervisor:which_children(list_to_atom(
+            ?iter_sup_name(Name)))).
+
 -record(gusion_config, {
         name::string(),
         names::list(string()),

@@ -9,7 +9,8 @@
         blog_state::record(gusion_blog_state),
         wfile_log::log(),
         finding_idle_iter::pid()|nil,
-        swap_wfile_timer::ref()
+        swap_wfile_timer::ref(),
+        iter_dict::dict()
     }).
 -define(GET_ITER_PROCESS_TIMEOUT, 500).
 
@@ -17,8 +18,6 @@
     file:write_file(filename:absname_join(Dir,
             ?state_file_name(BLogState#gusion_blog_state.name)),
         BLogState)).
--define(sup_children(Name), supervisor:which_children(list_to_atom(
-            ?iter_sup_name(Name)))).
 
 init([Dir, Name])->
     try
@@ -31,6 +30,7 @@ init([Dir, Name])->
         {ok, _Sup}=gusion_blog_iter_sup:start_link(Name, self(),
             NewBLogState#gusion_blog_state.iter_num),
         {ok, #state{
+                iter_dict=dict:new(),
                 finding_idle_iter=nil,
                 dir=Dir,
                 swap_wfile_timer=SWTimer,
@@ -85,7 +85,8 @@ handle_call({new_process_task, nil}, {Finding, _}, State=#state{
 handle_call({new_process_task, Iterator}, {Finding, _}, State=#state{
         dir=Dir,
         blog_state=BLogState,
-        finding_idle_iter=Finding
+        finding_idle_iter=Finding,
+        iter_dict=IterDict
     })->
     #gusion_blog_state{
         ifiles=IFiles,
@@ -106,6 +107,7 @@ handle_call({new_process_task, Iterator}, {Finding, _}, State=#state{
             },
             ok=?write_state_file(Dir, NewBLogState),
             {reply, ok, State#state{
+                    iter_dict=dict:store(NewPFile, Iterator, IterDict),
                     blog_state=BLogState,
                     finding_idle_iter=nil}}
     end;
