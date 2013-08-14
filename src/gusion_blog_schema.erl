@@ -7,8 +7,14 @@
 init([Dir])->
     process_flag(trap_exit, true),
     SchemaFile=filename:absname_join(Dir, "schema"),
-    {ok, Bin}=file:read_file(SchemaFile),
-    {ok, #gusion_blog_schema{dir=Dir, blog_set=binary_to_term(Bin)}}.
+    BLogSet=case file:read_file(SchemaFile) of
+        {ok, Bin}->binary_to_term(Bin);
+        {error, enoent}->
+            file:make_dir(Dir),
+            ok=file:write_file(SchemaFile, term_to_binary(sets:new())),
+            sets:new()
+    end,
+    {ok, #gusion_blog_schema{dir=Dir, blog_set=BLogSet}}.
 
 handle_call({add_blog, BLogName}, _From, State)->
     #gusion_blog_schema{dir=Dir, blog_set=BLogSet}=State,

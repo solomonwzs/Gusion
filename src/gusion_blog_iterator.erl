@@ -1,6 +1,7 @@
 -module(gusion_blog_iterator).
 -behaviour(gen_server).
 -include("gusion.hrl").
+-export([start_link/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, code_change/3,
         terminate/2]).
 
@@ -12,8 +13,11 @@
         process_log::log()|nil,
         chunk_size::integer()|infinity|nil,
         pro_func::{atom(), atom()}|nil,
-        progress::busy|compiled|idle
+        progress::busy|idle|stop
     }).
+
+start_link(WorkerServer)->
+    gen_server:start_link(?MODULE, [WorkerServer], []).
 
 init([WorkerServer])->
     process_flag(trap_exit, true),
@@ -39,7 +43,8 @@ handle_call({new_task, Dir, PFile, Func, ChunkSize}, _From, State=#state{
 handle_call(get_bchunk, _From, State=#state{
         data_log=DataLog,
         data_con=DataCon,
-        chunk_size=ChunkSize
+        chunk_size=ChunkSize,
+        progress=busy
     })->
     Chunk=case disk_log:bchunk(DataLog, DataCon, ChunkSize) of
         eof->eof;
@@ -49,9 +54,13 @@ handle_call(get_bchunk, _From, State=#state{
     {reply, {ok, Chunk}, State};
 handle_call(get_progress, _From, State)->
     {reply, State#state.progress, State};
+handle_call(stop, _From, State)->
+    {reply, {ok, State#state.pfile}, stop_iterator(State)};
 handle_call(_Msg, _From, State)->
     {reply, reply, State}.
 
+handle_cast(stop, State)->
+    {noreply, stop_iterator(State)};
 handle_cast(run, State=#state{
         pfile=PFile,
         worker_server=WorkerServer,
@@ -59,7 +68,8 @@ handle_cast(run, State=#state{
         data_con=DataCon,
         chunk_size=ChunkSize,
         pro_func={PModule, PFunc},
-        process_log=ProcessLog
+        process_log=ProcessLog,
+        progress=busy
     })->
     {NextDataCon, Chunk}=case disk_log:bchunk(DataLog, DataCon, ChunkSize) of
         eof->{nil, eof};
@@ -110,3 +120,12 @@ get_data_con(ProcessLog, ProcessCon, DataCon)->
             get_data_con(ProcessLog, NextCon,
                 binary_to_term(lists:last(BinList)))
     end.
+
+stop_iterator(#state{
+        worker_server=WorkerServer,
+        data_log=DataLog,
+        process_log=ProcessLog
+    })->
+    disk_log:close(DataLog),
+    disk_log:close(ProcessLog),
+    #state{worker_server=WorkerServer, progress=stop, _=nil}.

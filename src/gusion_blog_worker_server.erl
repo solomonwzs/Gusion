@@ -8,31 +8,54 @@
         dir::string(),
         blog_state::record(gusion_blog_state),
         wfile_log::log(),
-        finding_idle_iter::pid()|nil
+        finding_idle_iter::pid()|nil,
+        swap_wfile_timer::ref()
     }).
 -define(GET_ITER_PROCESS_TIMEOUT, 500).
 
--define(write_state_file(Dir, Name, BLogState),
-    file:write_file(filename:absname_join(Dir, ?state_file_name(Name)),
+-define(write_state_file(Dir, BLogState),
+    file:write_file(filename:absname_join(Dir,
+            ?state_file_name(BLogState#gusion_blog_state.name)),
         BLogState)).
 -define(sup_children(Name), supervisor:which_children(list_to_atom(
             ?iter_sup_name(Name)))).
 
 init([Dir, Name])->
-    process_flag(trap_exit, true),
-    StateFileName=filename:absname_join(Dir, ?state_file_name(Name)),
-    {ok, Bin}=file:read_file(StateFileName),
-    {WFileLog, NewBLogState}=swap_wfile(Dir, binary_to_term(Bin)),
-    {ok, #state{
-            finding_idle_iter=nil,
-            dir=Dir,
-            blog_state=NewBLogState,
-            wfile_log=WFileLog}}.
+    try
+        process_flag(trap_exit, true),
+        StateFileName=filename:absname_join(Dir, ?state_file_name(Name)),
+        {ok, Bin}=file:read_file(StateFileName),
+        {WFileLog, NewBLogState}=swap_wfile(Dir, binary_to_term(Bin)),
+        SWTimer=timer:send_interval(
+            NewBLogState#gusion_blog_state.swap_wfile_interval, swap_wfile),
+        {ok, _Sup}=gusion_blog_iter_sup:start_link(Name, self(),
+            NewBLogState#gusion_blog_state.iter_num),
+        {ok, #state{
+                finding_idle_iter=nil,
+                dir=Dir,
+                swap_wfile_timer=SWTimer,
+                blog_state=NewBLogState,
+                wfile_log=WFileLog}}
+    catch
+        Type:What->{stop, {Type, What}}
+    end.
 
+handle_call({set_swap_wfile_interval, Time}, _From, State=#state{
+        dir=Dir,
+        swap_wfile_timer=SWTimer,
+        blog_state=BLogState
+    })->
+    {ok, cancel}=timer:cancel(SWTimer),
+    NewBLogState=BLogState#gusion_blog_state{swap_wfile_interval=Time},
+    ok=?write_state_file(Dir, NewBLogState),
+    NewSWTimer=timer:send_interval(Time, swap_wfile),
+    {reply, ok, State#state{
+            blog_state=NewBLogState,
+            swap_wfile_timer=NewSWTimer}};
 handle_call({write_blog, Term}, _From, State)->
     Reply=case disk_log:blog(State#state.wfile_log, term_to_binary(Term)) of
         ok->ok;
-        {error, Reason}->{aborted, Reason}
+        {error, Reason}->{error, Reason}
     end,
     {ok, Reply, State};
 handle_call({remove_process_blog, PFile}, _From, State)->
@@ -41,14 +64,13 @@ handle_call({remove_process_blog, PFile}, _From, State)->
         blog_state=BLogState
     }=State,
     #gusion_blog_state{
-        name=Name,
         pfiles=PFiles,
         rm_func={RModule, RFunc}
     }=BLogState,
     ok=apply(RModule, RFunc, [Dir, PFile]),
     NewBLogState=BLogState#gusion_blog_state{
         pfiles=?set_del_element(PFile, PFiles)},
-    ok=?write_state_file(Dir, Name, BLogState),
+    ok=?write_state_file(Dir, BLogState),
     {reply, ok, State#state{blog_state=NewBLogState}};
 handle_call({new_process_task, nil}, {Finding, _}, State=#state{
         blog_state=BLogState,
@@ -66,7 +88,6 @@ handle_call({new_process_task, Iterator}, {Finding, _}, State=#state{
         finding_idle_iter=Finding
     })->
     #gusion_blog_state{
-        name=Name,
         ifiles=IFiles,
         pfiles=PFiles,
         pro_func=ProFunc,
@@ -83,7 +104,7 @@ handle_call({new_process_task, Iterator}, {Finding, _}, State=#state{
                 ifiles=NewIFiles,
                 pfiles=?set_add_element(NewPFile, PFiles)
             },
-            ok=?write_state_file(Dir, Name, NewBLogState),
+            ok=?write_state_file(Dir, NewBLogState),
             {reply, ok, State#state{
                     blog_state=BLogState,
                     finding_idle_iter=nil}}
@@ -154,7 +175,7 @@ swap_wfile(Dir, BLogState)->
     ok=disk_log:close(Ret),
 
     NewBLogState=BLogState#gusion_blog_state{wfile=NewWFile, ifiles=NewIFiles},
-    ok=?write_state_file(Dir, Name, NewBLogState),
+    ok=?write_state_file(Dir, NewBLogState),
 
     {WFileLog, NewBLogState}.
 

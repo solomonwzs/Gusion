@@ -6,8 +6,10 @@
 
 -type log()::term().
 -type continuation()::term().
+-type ref()::term().
 
 -define(TIMESTAMP_SIZE, 7).
+-define(SCHEMA_SERVER_NAME, 'gb:schema').
 
 -define(timestamp, calendar:datetime_to_gregorian_seconds(
         calendar:universal_time())).
@@ -87,7 +89,8 @@
         pro_func::{atom(), atom()},
         rm_func::{atom(), atom()},
         chunk_size::integer()|infinity,
-        process_interval::integer()
+        swap_wfile_interval::integer(),
+        iter_num::integer()
     }).
 
 -record(gusion_blog_schema, {
