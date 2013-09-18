@@ -1,4 +1,4 @@
-#ifdef _GC_COMM_H
+#ifndef _GC_COMM_H
 #define _GC_COMM_H
 
 #include <unistd.h>
