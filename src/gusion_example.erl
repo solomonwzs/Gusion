@@ -1,17 +1,24 @@
 -module(gusion_example).
 
--export([gc_start/0, gc_stop/0]).
+-export([gc_start/1, gc_stop/0]).
 -export([gc_twice/1, gc_sum/2]).
 
--define(GC_REGISTER, gc_example).
+-define(GC_REGISTER, gusion_drv).
 
-gc_start()->
-    spawn(fun()->
-                register(?GC_REGISTER, self()),
-                process_flag(trap_exit, true),
-                Port=open_port({spawn, "./c_bin/gc_example"}, [{packet, 2}]),
-                gc_loop(Port)
-        end).
+gc_start(SharedLib)->
+    case erl_ddll:load_driver(".", SharedLib) of
+        ok->ok;
+        {error, already_loaded}->ok;
+        R->
+            io:format("~p~n", [R]),
+            exit({error, could_not_load_driver})
+    end,
+    spawn(fun()->init(SharedLib) end).
+
+init(SharedLib)->
+    register(?GC_REGISTER, self()),
+    Port=open_port({spawn, SharedLib}, []),
+    gc_loop(Port).
 
 gc_stop()->
     ?GC_REGISTER!stop.
