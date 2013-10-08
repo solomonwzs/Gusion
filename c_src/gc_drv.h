@@ -2,7 +2,7 @@
 #define _GC_DRV_H
 
 #include <stdio.h>
-#include "erl_driver.h"
+#include <erl_driver.h>
 
 typedef struct{
     ErlDrvPort port;

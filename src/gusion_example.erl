@@ -6,7 +6,7 @@
 -define(GC_REGISTER, gusion_drv).
 
 gc_start(SharedLib)->
-    case erl_ddll:load_driver(".", SharedLib) of
+    case erl_ddll:load_driver("./priv", SharedLib) of
         ok->ok;
         {error, already_loaded}->ok;
         R->

@@ -3,7 +3,7 @@
 
 static ErlDrvData example_drv_start(ErlDrvPort port, char *buff){
     example_data* d=(example_data*)driver_alloc(sizeof(example_data));
-    d->port=port;
+    d->port=port; 
     return (ErlDrvData)d;
 }
 
@@ -34,9 +34,21 @@ ErlDrvEntry example_driver_entry = {
                            called when output descriptor ready to write */
     "gusion_drv",       /* char *driver_name, the argument to open_port */
     NULL,               /* F_PTR finish, called when unloaded */
+    NULL,               /* handle */
     NULL,               /* F_PTR control, port_command callback */
     NULL,               /* F_PTR timeout, reserved */
-    NULL                /* F_PTR outputv, reserved */
+    NULL,               /* F_PTR outputv, reserved */
+    NULL,               /* ready_async */
+    NULL,               /* flush */
+    NULL,               /* call */
+    NULL,               /* event */
+    ERL_DRV_EXTENDED_MARKER,        /* extended_marker */
+    ERL_DRV_EXTENDED_MAJOR_VERSION, /* major_version */
+    ERL_DRV_EXTENDED_MINOR_VERSION, /* minor_version */
+    ERL_DRV_FLAG_USE_PORT_LOCKING,  /* driver_flags */
+    NULL,               /* handle2 */
+    NULL,               /* process_exit */
+    NULL                /* stop_select */
 };
 
 DRIVER_INIT(gusion_drv){
