@@ -1,19 +1,20 @@
 -module(gusion_example).
 
--export([gc_start/1, gc_stop/0]).
--export([gc_twice/1, gc_sum/2]).
+-export([gc_start/0, gc_stop/0]).
+-export([gc_process/1]).
 
 -define(GC_REGISTER, gusion_drv).
+-define(term_to_list(X), binary_to_list(term_to_binary(X))).
 
-gc_start(SharedLib)->
-    case erl_ddll:load_driver("./priv", SharedLib) of
+gc_start()->
+    case erl_ddll:load_driver("./priv", "gusion_example_drv") of
         ok->ok;
         {error, already_loaded}->ok;
         R->
             io:format("~p~n", [R]),
             exit({error, could_not_load_driver})
     end,
-    spawn(fun()->init(SharedLib) end).
+    spawn(fun()->init("gusion_example_drv") end).
 
 init(SharedLib)->
     register(?GC_REGISTER, self()),
@@ -23,8 +24,7 @@ init(SharedLib)->
 gc_stop()->
     ?GC_REGISTER!stop.
 
-gc_twice(X)->gc_call_port({twice, X}).
-gc_sum(X, Y)->gc_call_port({sum, X, Y}).
+gc_process(X)->gc_call_port({process, X}).
 
 gc_call_port(Msg)->
     ?GC_REGISTER!{call, self(), Msg},
@@ -35,11 +35,11 @@ gc_call_port(Msg)->
 
 gc_loop(Port)->
     receive
-        {call, Caller, Msg}->
-            Port!{self(), {command, gc_encode(Msg)}},
+        {call, Caller, {process, X}}->
+            Port!{self(), {command, ?term_to_list(X)}},
             receive
                 {Port, {data, Data}}->
-                    Caller!{?GC_REGISTER, gc_decode(Data)}
+                    Caller!{?GC_REGISTER, Data}
             end,
             gc_loop(Port);
         stop->
@@ -51,8 +51,3 @@ gc_loop(Port)->
         {'EXIT', Port, Reason}->
             exit({port_terminated, Reason})
     end.
-
-gc_encode({twice, X})->[1, X];
-gc_encode({sum, X, Y})->[2, X, Y].
-
-gc_decode([Int])->Int.
