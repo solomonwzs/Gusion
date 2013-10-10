@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <erl_driver.h>
+#include <zlog.h>
 
 typedef struct{
     ErlDrvPort port;

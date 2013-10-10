@@ -4,17 +4,16 @@
 -export([gc_process/1]).
 
 -define(GC_REGISTER, gusion_drv).
+-define(GC_EXAMPLE_DRV, "gusion_example_drv").
 -define(term_to_list(X), binary_to_list(term_to_binary(X))).
 
 gc_start()->
-    case erl_ddll:load_driver("./priv", "gusion_example_drv") of
+    case erl_ddll:load_driver("./priv", ?GC_EXAMPLE_DRV) of
         ok->ok;
         {error, already_loaded}->ok;
-        R->
-            io:format("~p~n", [R]),
-            exit({error, could_not_load_driver})
+        _->exit({error, could_not_load_driver})
     end,
-    spawn(fun()->init("gusion_example_drv") end).
+    spawn(fun()->init(?GC_EXAMPLE_DRV) end).
 
 init(SharedLib)->
     register(?GC_REGISTER, self()),

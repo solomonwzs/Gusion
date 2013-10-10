@@ -1,13 +1,19 @@
 #include "gc_example_drv.h"
 #include "example.h"
 
+zlog_category_t *logc;
+
 static ErlDrvData example_drv_start(ErlDrvPort port, char *buff){
+    zlog_init("example_log.conf");
+    logc=zlog_get_category("gc_example");
+
     example_data* d=(example_data*)driver_alloc(sizeof(example_data));
     d->port=port; 
     return (ErlDrvData)d;
 }
 
 static void example_drv_stop(ErlDrvData handle){
+    zlog_fini();
     driver_free((char *)handle);
 }
 
