@@ -3,6 +3,7 @@
 
 #include <erl_interface.h>
 #include <ei.h>
+#include <string.h>
 #include "gc_example_drv.h"
 
 int twice(int x);
